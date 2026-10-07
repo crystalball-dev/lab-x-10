@@ -1,8 +1,9 @@
 """Automated offline checks for LAB X-10.
 
 Runs the LabX10Render harness through a battery of renders and verifies them with analyze.py.
-Usage:  python Tests/run_tests.py [--library <stalker sounds folder>] [--only 1,2,5] [--skip-pluginval]
-                                  [--fuzz-seconds 300]
+Usage:  python Tests/run_tests.py [--library <stalker sounds folder>] [--specimens <STALKER SPECIMENS folder>]
+                                  [--only 1,2,5] [--skip-pluginval] [--fuzz-seconds 300]
+Without --library or --specimens the harness finds the folders itself, as the plugin does.
 
 Writes WAVs to Tests/out (ignored by git) and a JSON report to build/test-report.json.
 Test numbers follow the plan in LAB_X10_HANDOFF.md section 4.
@@ -36,6 +37,7 @@ CLEAN = ["gen_a_wave=3", "gen_a_shape=0", "gen_a_level=1", "uni_voices=1", "gen_
 
 STAT = re.compile(r'(\w+)=("([^"]*)"|\S+)')
 E2 = 82.4069
+SPECIMENS = None   # STALKER SPECIMENS library folder from --specimens
 
 
 def render(name, extra, library=None, timeout=600):
@@ -44,6 +46,8 @@ def render(name, extra, library=None, timeout=600):
     cmd = [str(HARNESS), "--out", str(wav)] + extra
     if library:
         cmd += ["--library", library]
+    if SPECIMENS:
+        cmd += ["--specimens", SPECIMENS]
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     stats = {}
     for line in proc.stdout.splitlines():
@@ -63,12 +67,15 @@ def sets(values):
 
 
 def main():
+    global SPECIMENS
     parser = argparse.ArgumentParser()
     parser.add_argument("--library")
+    parser.add_argument("--specimens")
     parser.add_argument("--only", help="comma-separated test numbers")
     parser.add_argument("--skip-pluginval", action="store_true")
     parser.add_argument("--fuzz-seconds", type=float, default=300.0)
     args = parser.parse_args()
+    SPECIMENS = args.specimens
 
     if not HARNESS.exists():
         print(f"harness not built: {HARNESS}")
@@ -286,10 +293,14 @@ def main():
         rate = an.modulation_frequency(track, step)
         record(13, "LFO 1/8 at 120 BPM = 4 Hz", abs(rate - 4.0) <= 0.1, {"modulation_hz": round(rate, 3)})
 
-    # 14. Every SPECIMEN entry loads; tables play E2 on pitch, noise-like sources stay finite and audible.
+    # 14. Every SPECIMEN entry (FL pack and STALKER SPECIMENS library) loads; tables play E2 on pitch,
+    #     noise-like sources stay finite and audible.
     if want(14):
         spec_patch = CLEAN + ["gen_a_level=0", "specimen_level=1", "specimen_mode=0", "specimen_track=1", "master_volume=-6"]
-        for choice in range(1, 21):
+        catalogue = [line.split("\t") for line in
+                     subprocess.run([str(HARNESS), "--list-specimens"], capture_output=True, text=True).stdout.splitlines()]
+        for row in catalogue:
+            choice = int(row[0])
             wav, st = render(f"specimen_{choice:02d}", ["--notes", "40", "--seconds", "2.5", "--hold", "2.2"]
                              + sets(spec_patch + [f"specimen_source={choice}"]), lib)
             m, data, fs = load_mono(wav)
@@ -306,7 +317,7 @@ def main():
                 cents = 1200 * math.log2(f0 / (k * E2))
                 ok = loaded and abs(cents) <= 2.0 and level > -40.0
                 detail = {"status": status, "dominant_hz": round(f0, 2), "harmonic": k, "cents": round(cents, 2)}
-            record(14, f"specimen {choice:02d}", ok, detail)
+            record(14, f"specimen {choice:02d} {row[1]} ({row[2]})", ok, detail)
 
     # 15. Every factory preset: finite, under its ceiling, between -22 and -6 dBFS RMS on a bass line.
     line = "36@0-0.45,36@0.5-0.95,43@1-1.45,41@1.5-2.4,36@2.5-2.95,48@3-3.45,39@3.5-4.2"
@@ -349,6 +360,8 @@ def main():
         cmd = [str(HARNESS), "--fuzz", "--seconds", str(args.fuzz_seconds), "--seed", "11", "--vary-blocks"]
         if lib:
             cmd += ["--library", lib]
+        if SPECIMENS:
+            cmd += ["--specimens", SPECIMENS]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
         stats = {k: (q if v.startswith('"') else v) for k, v, q in STAT.findall(proc.stdout)}
         ok = (proc.returncode == 0 and stats.get("non_finite") == "0" and stats.get("growth_fx_only") == "0"

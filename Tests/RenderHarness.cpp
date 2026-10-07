@@ -2,10 +2,10 @@
 //
 //   LabX10Render --out <file.wav> [--preset <n|name>] [--notes 36,43] [--events "36@0-2:127,43@0.5-2"]
 //                [--seconds 6] [--hold 4] [--velocity 0.8] [--sr 48000] [--block 512] [--bpm 128]
-//                [--library <dir>] [--userfile <file>] [--set id=value ...]
+//                [--library <dir>] [--specimens <dir>] [--userfile <file>] [--set id=value ...]
 //                [--program-at "4@2.5,7@5"] [--tail-from <seconds>] [--no-trim]
 //                [--inject-burst <hz>@<seconds>] [--mute-voices]
-//                [--png <file.png>] [--roundtrip] [--list] [--list-params]
+//                [--png <file.png>] [--roundtrip] [--list] [--list-params] [--list-specimens]
 //
 //   LabX10Render --fuzz --seconds 300 [--seed 1] [--vary-blocks] [--out <file.wav>]
 //       Random session: notes, presets, parameter moves, mod wheel, bend, sustain. Every 30 s
@@ -348,6 +348,17 @@ int main (int argc, char* argv[])
         return 0;
     }
 
+    if (args.contains ("--list-specimens"))
+    {
+        for (int i = 0; i < labx10::specimenCatalogSize; ++i)
+        {
+            const auto& e = labx10::specimenCatalog[i];
+            std::cout << (i + 1) << "\t" << e.name << "\t"
+                      << (e.root == labx10::SpecimenRoot::library ? "library" : "pack") << "\t" << e.relativePath << std::endl;
+        }
+        return 0;
+    }
+
     if (args.contains ("--list-params"))
     {
         const auto& specs = labx10::paramSpecs();
@@ -383,6 +394,8 @@ int main (int argc, char* argv[])
 
     if (args.contains ("--library"))
         proc->getSpecimenLibrary().setLibraryRoot (juce::File (option (args, "--library")), false);
+    if (args.contains ("--specimens"))
+        proc->getSpecimenLibrary().setLibraryRoot (juce::File (option (args, "--specimens")), false);
     if (args.contains ("--userfile"))
         proc->getSpecimenLibrary().setUserFile (juce::File (option (args, "--userfile")));
 

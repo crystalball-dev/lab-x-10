@@ -4,7 +4,7 @@ namespace labx10
 {
     inline constexpr const char* pluginName    = "LAB X-10";
     inline constexpr const char* vendorName    = "OPERATION FAIRWAY, LLC";
-    inline constexpr const char* versionString = "0.1.0";
+    inline constexpr const char* versionString = "0.1.1";
     inline constexpr const char* projectUrl    = "github.com/crystalball-dev/lab-x-10";
 
     inline constexpr int maxVoices    = 6;    // voice slots; mono modes use spare slots to hand notes over cleanly

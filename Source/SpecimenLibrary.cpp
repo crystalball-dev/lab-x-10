@@ -30,6 +30,27 @@ namespace labx10
             return dir.isDirectory() && dir.getChildFile (specimenCatalog[0].relativePath).existsAsFile();
         }
 
+        // Some game files decode with a burst of garbage: Shadow of Chornobyl's psy_blackout_l.ogg starts with
+        // 238 samples reaching +71 dBFS. Non-finite samples and anything above +24 dBFS are silenced together
+        // with 10 ms either side, so one bad burst can neither dominate the normalisation nor reach the output.
+        int silenceDecodeBursts (float* d, int length, double sampleRate)
+        {
+            const int pad = std::max (1, (int) (sampleRate * 0.010));
+            int bursts = 0, clearedUntil = -1;
+            for (int i = 0; i < length; ++i)
+            {
+                if (std::isfinite (d[i]) && std::abs (d[i]) <= 16.0f)
+                    continue;
+                ++bursts;
+                const int from = std::max (clearedUntil + 1, i - pad);
+                const int to = std::min (length - 1, i + pad);
+                for (int k = from; k <= to; ++k)
+                    d[k] = 0.0f;
+                clearedUntil = std::max (clearedUntil, to);
+            }
+            return bursts;
+        }
+
         // Many recordings swell from silence to a single loud moment. Grains can start anywhere,
         // so the slow loudness contour is flattened (a quarter of the original swing is kept)
         // while everything faster than ~50 ms, the texture itself, is left untouched.
@@ -316,6 +337,8 @@ namespace labx10
         settings = std::make_unique<juce::PropertiesFile> (settingsOptions());
         juce::File saved (settings->getValue ("libraryRoot"));
         root = looksLikePack (saved) ? saved : autodetectRoot();
+        juce::File savedLibrary (settings->getValue ("specimenLibraryRoot"));
+        specimenRoot = looksLikeSpecimenLibrary (savedLibrary) ? savedLibrary : autodetectSpecimenLibrary();
 
         startThread (juce::Thread::Priority::low);
     }
@@ -349,6 +372,27 @@ namespace labx10
         return {};
     }
 
+    bool SpecimenLibrary::looksLikeSpecimenLibrary (const juce::File& folder)
+    {
+        if (! folder.isDirectory())
+            return false;
+        for (auto game : specimenLibraryGames)
+            if (folder.getChildFile (game).getChildFile ("sounds").isDirectory())
+                return true;
+        return false;
+    }
+
+    juce::File SpecimenLibrary::autodetectSpecimenLibrary()
+    {
+        for (auto drive : { "C", "D", "E", "F", "G", "H" })
+        {
+            const juce::File candidate (juce::String (drive) + ":\\" + juce::String (specimenLibrarySubPath).replace ("/", "\\"));
+            if (looksLikeSpecimenLibrary (candidate))
+                return candidate;
+        }
+        return {};
+    }
+
     void SpecimenLibrary::requestChoice (int choice) noexcept
     {
         requested.store (choice);
@@ -364,13 +408,14 @@ namespace labx10
 
     void SpecimenLibrary::setLibraryRoot (const juce::File& folder, bool persist)
     {
+        const bool isLibrary = looksLikeSpecimenLibrary (folder);
         {
             const juce::ScopedLock sl (lock);
-            root = folder;
+            (isLibrary ? specimenRoot : root) = folder;
         }
         if (persist && settings != nullptr)
         {
-            settings->setValue ("libraryRoot", folder.getFullPathName());
+            settings->setValue (isLibrary ? "specimenLibraryRoot" : "libraryRoot", folder.getFullPathName());
             settings->saveIfNeeded();
         }
         generation.fetch_add (1);
@@ -381,6 +426,12 @@ namespace labx10
     {
         const juce::ScopedLock sl (lock);
         return root;
+    }
+
+    juce::File SpecimenLibrary::getSpecimenLibraryRoot() const
+    {
+        const juce::ScopedLock sl (lock);
+        return specimenRoot;
     }
 
     void SpecimenLibrary::setUserFile (const juce::File& file)
@@ -460,6 +511,7 @@ namespace labx10
     {
         juce::File file;
         juce::String name;
+        bool fromLibrary = false;
         {
             const juce::ScopedLock sl (lock);
             if (choice == specimenUserChoice)
@@ -471,8 +523,10 @@ namespace labx10
             {
                 const auto& entry = specimenCatalog[choice - 1];
                 name = entry.name;
-                if (root.isDirectory())
-                    file = root.getChildFile (entry.relativePath);
+                fromLibrary = entry.root == SpecimenRoot::library;
+                const auto& base = fromLibrary ? specimenRoot : root;
+                if (base.isDirectory())
+                    file = base.getChildFile (entry.relativePath);
             }
         }
 
@@ -485,7 +539,8 @@ namespace labx10
         };
 
         if (choice != specimenUserChoice && file == juce::File())
-            return fail (Status::missingLibrary, "LIBRARY NOT FOUND / SET FOLDER");
+            return fail (Status::missingLibrary, fromLibrary ? "SPECIMEN LIBRARY NOT FOUND / SET FOLDER"
+                                                             : "LIBRARY NOT FOUND / SET FOLDER");
 
         if (choice == specimenUserChoice && file == juce::File())
             return fail (Status::missingFile, "NO USER FILE / LOAD ONE");
@@ -525,6 +580,7 @@ namespace labx10
             d[i] = s / (float) channels;
         }
 
+        silenceDecodeBursts (d, length, reader->sampleRate);
         flattenDynamics (d, length, reader->sampleRate);
 
         double sumSquares = 0.0;

@@ -14,7 +14,7 @@ LAB X-10 makes neutral sub-bass, heavy distorted electronic bass and acid lines.
 - **GENERATOR B.** A second oscillator that frequency-modulates or ring-modulates A for metallic and inharmonic basses.
 - **SUB, LOCK and DROP.** A sine, triangle, square or transformer-style HUM sub, one or two octaves down, routed straight past the filter or through it. LOCK restarts the oscillator phases on every note, so every hit lands identically. DROP starts each note up to three octaves high and falls into place, 808-style.
 - **SPARK.** A relay-click or static burst at the start of each note, plus sustained noise.
-- **SPECIMEN.** Reads sounds from your own copy of the `stalker sounds` pack. In TABLE mode it cuts 16 single-cycle frames from a recording, tuned to the loudest hum, so the bunker's generators, turbines and transformers become playable wavetables. GRAIN mode is LAB X-3's granular engine.
+- **SPECIMEN.** Reads sounds from your own disk: the `stalker sounds` pack that ships with older FL Studio installs, and a STALKER SPECIMENS library of sounds extracted from your own copies of the games. Among them are the Radar's machinery from *Shadow of Chornobyl* and the generator rooms of *S.T.A.L.K.E.R. 2*. In TABLE mode it cuts 16 single-cycle frames from a recording, tuned to the loudest hum, so generators, turbines and transformers become playable wavetables. GRAIN mode is LAB X-3's granular engine.
 - **FILTER.** A TB-303 style diode ladder for acid, a transistor ladder for heavy bass, and a clean state-variable filter in low-, band- and high-pass. Velocity accents open the filter and push the level, and repeated accents sweep higher.
 - **EMITTER.** Tube, clip, fold, rectify or bit-crush distortion, oversampled up to 4x, applied only above the split. TONE tilts the result, MIX blends it back.
 - **LFO and COOLDOWN.** One LFO that locks to the host tempo, with sample-and-hold and a drifting random walk. COOLDOWN is a beat-locked pump or gate on everything above the sub: the emitter's cooling periods.
@@ -34,7 +34,14 @@ LAB X-10 makes neutral sub-bass, heavy distorted electronic bass and acid lines.
 
 ## Sound sources
 
-The SPECIMEN layer and the TABLE waveform read audio from a folder on your machine. Neither this repository nor its builds include any game audio: `Source/SpecimenCatalog.h` lists 20 relative file paths only. Use **LIBRARY** to point the plugin at your own copy of the pack, or **LOAD FILE** to use any WAV, OGG, FLAC or AIFF file. Without the pack, the TABLE waveform falls back to a sine and every other part of the synth still works.
+The SPECIMEN layer and the TABLE waveform read audio from folders on your machine. Neither this repository nor its builds include any game audio: `Source/SpecimenCatalog.h` lists 37 relative file paths only.
+
+- **The first 20 sources** come from the `stalker sounds` pack inside an FL Studio installation, found automatically.
+- **The other 17** come from a STALKER SPECIMENS library, a folder of sounds you extract from your own installed copies of the games. LAB X-10 finds it automatically at `<drive>:\_AUDIO\STALKER SPECIMENS`, which holds `<game>\sounds\...` folders such as `shadow_of_chornobyl` and `heart_of_chornobyl`.
+- **LIBRARY** points the plugin at either kind of folder; it recognises which one you picked.
+- **LOAD FILE** uses any WAV, OGG, FLAC or AIFF file.
+
+A missing folder silences only the sources that live in it. Without any, the TABLE waveform falls back to a sine and every other part of the synth still works. Files that decode with a burst of garbage, which happens in some game data, are repaired on load: any sample above +24 dBFS is silenced together with 10 ms either side.
 
 ## Building on Windows
 

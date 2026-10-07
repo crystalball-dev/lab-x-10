@@ -10,9 +10,10 @@
 
 namespace labx10
 {
-    // Loads SPECIMEN source files from the user's own disk on a background thread, cuts a wavetable
-    // from each one, and hands both to the audio thread without locks. Retired buffers are freed only
-    // after the audio thread has started two more blocks, so a buffer is never freed while it is read.
+    // Loads SPECIMEN source files from the user's own disk (FL's 'stalker sounds' pack or the STALKER
+    // SPECIMENS library) on a background thread, cuts a wavetable from each one, and hands both to the
+    // audio thread without locks. Retired buffers are freed only after the audio thread has started two
+    // more blocks, so a buffer is never freed while it is read.
     class SpecimenLibrary : private juce::Thread
     {
     public:
@@ -27,9 +28,11 @@ namespace labx10
         // Audio thread: call once at the start of every block and use the result for that block.
         const dsp::SpecimenData* acquireForBlock() noexcept;
 
-        // Message thread.
+        // Message thread. setLibraryRoot recognises either kind of folder: a STALKER SPECIMENS library
+        // (any <game>\sounds subfolder) becomes the library root, anything else the pack root.
         void setLibraryRoot (const juce::File& folder, bool persist);
         juce::File getLibraryRoot() const;
+        juce::File getSpecimenLibraryRoot() const;
         void setUserFile (const juce::File& file);
         juce::File getUserFile() const;
 
@@ -47,6 +50,8 @@ namespace labx10
         bool waitUntilSettled (int timeoutMs) const;
 
         static juce::File autodetectRoot();
+        static juce::File autodetectSpecimenLibrary();
+        static bool looksLikeSpecimenLibrary (const juce::File& folder);
 
         // Cuts 16 single-cycle frames from a mono recording and builds the band-limited mip levels.
         static dsp::WavetableData buildTable (const float* data, int length, double sampleRate);
@@ -61,8 +66,8 @@ namespace labx10
         juce::AudioFormatManager formats;
         std::unique_ptr<juce::PropertiesFile> settings;
 
-        mutable juce::CriticalSection lock;   // guards root, userFile, statusText
-        juce::File root, userFile;
+        mutable juce::CriticalSection lock;   // guards root, specimenRoot, userFile, statusText
+        juce::File root, specimenRoot, userFile;
         juce::String statusText { "NO SPECIMEN" };
 
         std::atomic<int> requested { -1 }, generation { 0 };

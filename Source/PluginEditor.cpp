@@ -26,7 +26,7 @@ LabX10AudioProcessorEditor::SpecimenControls::SpecimenControls (LabX10AudioProce
     addAndMakeVisible (status);
 
     loadButton.setTooltip ("Load your own audio file as the specimen");
-    libraryButton.setTooltip ("Choose the 'stalker sounds' folder that the catalogue entries are read from");
+    libraryButton.setTooltip ("Choose FL Studio's 'stalker sounds' folder or your STALKER SPECIMENS library folder");
     loadButton.onClick = [&owner] { owner.chooseUserFile(); };
     libraryButton.onClick = [&owner] { owner.chooseLibraryFolder(); };
 
@@ -364,7 +364,8 @@ void LabX10AudioProcessorEditor::refreshFromProcessor()
     const int mode = (int) std::lround (state.getRawParameterValue ("voice_mode")->load());
     const int limit = mode == Choice::poly ? (int) std::lround (state.getRawParameterValue ("voices")->load()) : 1;
     const char* modeNames[] = { "MONO", "LEGATO", "POLY" };
-    const auto root = lib.getLibraryRoot();
+    const bool pack = lib.getLibraryRoot().isDirectory();
+    const bool specimens = lib.getSpecimenLibraryRoot().isDirectory();
 
     juce::String text;
     text << "VOICES    " << m.activeVoices.load() << " / " << limit << "  " << modeNames[juce::jlimit (0, 2, mode)] << "\n"
@@ -374,7 +375,7 @@ void LabX10AudioProcessorEditor::refreshFromProcessor()
          << "PEAK      " << juce::String (m.peakDb.load(), 1) << " dBFS\n"
          << "REGULATE  " << juce::String (m.gainReductionDb.load(), 1) << " dB\n"
          << "FAULTS    " << m.faults.load() << "\n"
-         << "LIBRARY   " << (root.isDirectory() ? "LINKED" : "NOT FOUND") << "\n"
+         << "LIBRARY   " << (pack && specimens ? "PACK + SPECIMENS" : (pack ? "PACK ONLY" : (specimens ? "SPECIMENS ONLY" : "NOT FOUND"))) << "\n"
          << "DOOR      342089";
     systemLabel.setText (text, juce::dontSendNotification);
 }
@@ -391,7 +392,8 @@ void LabX10AudioProcessorEditor::stepPreset (int delta)
 void LabX10AudioProcessorEditor::chooseLibraryFolder()
 {
     auto& lib = audioProcessor.getSpecimenLibrary();
-    chooser = std::make_unique<juce::FileChooser> ("Select the 'stalker sounds' folder", lib.getLibraryRoot(), "*");
+    chooser = std::make_unique<juce::FileChooser> ("Select the 'stalker sounds' folder or the STALKER SPECIMENS library",
+                                                   lib.getLibraryRoot(), "*");
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
                           [this] (const juce::FileChooser& fc)
                           {

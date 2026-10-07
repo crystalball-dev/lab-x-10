@@ -104,6 +104,38 @@ voice sum ─> EMITTER [ oversampled: LR4 split ─> low band ─> mono, clean
   and effect state, snap smoothers and fade back in; oversampling changes use the same fade. Non-finite samples
   are silenced and counted as FAULTS. MIDI IN rate in SYSTEM.
 
+## 0.1.1: the STALKER SPECIMENS library
+
+- Catalogue entries carry a root: FL's `stalker sounds` pack, or the STALKER SPECIMENS library at
+  `<drive>:\_AUDIO\STALKER SPECIMENS` (sounds extracted from the user's own copies of the games; recognised by
+  any `<game>\sounds` folder, the same convention LAB X-3 0.2.0 uses). Entries 1-20 are unchanged, so saved
+  projects keep their sources; entries 21-37 are new, appended at the end.
+- New sources, with the table pitch the cutter measured:
+
+| # | Name | File | Table |
+|---|---|---|---|
+| 21 | Scorcher Radar | Shadow of Chornobyl `device/radar_idle.ogg` | 22 Hz |
+| 22 | Radar Wind-Down | Shadow of Chornobyl `device/radar_stop.ogg` | 34 Hz |
+| 23 | X-16 Brain | Shadow of Chornobyl `ambient/x16/x16_brain_run.ogg` | 256 Hz |
+| 24 | X-16 Psy Field | Shadow of Chornobyl `ambient/x16/x16_psy_l.ogg` | 119 Hz |
+| 25 | Monolith | Shadow of Chornobyl `ambient/monolith_1.ogg` | 58 Hz |
+| 26 | Psy Blackout | Shadow of Chornobyl `affects/psy_blackout_r.ogg` | 105 Hz |
+| 27 | Swamp Generator | Clear Sky `ambient/special/marsh_generator.ogg` | 100 Hz |
+| 28 | Jupiter Generator | Call of Prypiat `ambient/jupiter/jup_b219_generator_looped.ogg` | 95 Hz |
+| 29 | Pripyat Generator | Call of Prypiat `ambient/pripyat/pri_b306_generator_work.ogg` | 275 Hz |
+| 30 | Underpass Transformer | Call of Prypiat `ambient/underpass/pas_b400_transformer.ogg` | noise-like |
+| 31 | X7 Generator | S.T.A.L.K.E.R. 2 `GSCAudioVolumes/AV_Generators/SFX_AV_Generators_X7` | 25 Hz |
+| 32 | Generator Sub | S.T.A.L.K.E.R. 2 `AV_Generators/SFX_AV_Generators_Large_Loop_16` | 28 Hz |
+| 33 | Electro Anomaly | S.T.A.L.K.E.R. 2 `Anomalies/Electro/SFX_Anomaly_Electro_01` | 35 Hz |
+| 34 | Arena Generator | S.T.A.L.K.E.R. 2 `AV_Generators/SFX_AV_Generators_Strelok_Arena_09` | 45 Hz |
+| 35 | Mains Hum | S.T.A.L.K.E.R. 2 `AV_Generators/SFX_AV_Generators_Large_Loop_06` | 50 Hz |
+| 36 | Psy Noise | S.T.A.L.K.E.R. 2 `Effects/Psy/SFX_Psy_Noise_Play_02` | 53 Hz |
+| 37 | Hundred Hertz | S.T.A.L.K.E.R. 2 `AV_Generators/SFX_AV_Generators_Large_Loop_22` | 99 Hz |
+
+- The loader silences non-finite samples and samples above +24 dBFS, with 10 ms either side, before
+  normalising. Shadow of Chornobyl's `psy_blackout_l.ogg` decodes with 238 samples up to +71 dBFS at its start;
+  the catalogue uses the clean right channel, and the guard protects files loaded with LOAD FILE.
+
 ## Changes from the plan
 
 Decided during the build, all in the plan's spirit:

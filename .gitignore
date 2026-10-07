@@ -23,6 +23,7 @@ __pycache__/
 *.m4a
 *.opus
 *.wv
+*.wem
 
 # Host projects and private planning notes with machine-specific paths
 *.flp

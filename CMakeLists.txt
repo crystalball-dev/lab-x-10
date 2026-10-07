@@ -33,6 +33,7 @@ juce_add_plugin(LabX10
 
 set(LABX10_SOURCES
     Source/PluginProcessor.cpp
+    Source/SpecimenLibrary.cpp
     Source/FactoryPresets.cpp)
 
 set(LABX10_DEFINITIONS
@@ -51,4 +52,17 @@ target_link_libraries(LabX10
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags)
+
+# Offline render and test harness: same sources, driven from the command line.
+juce_add_console_app(LabX10Render PRODUCT_NAME "LabX10Render")
+target_sources(LabX10Render PRIVATE Tests/RenderHarness.cpp ${LABX10_SOURCES})
+target_include_directories(LabX10Render PRIVATE Source)
+target_compile_definitions(LabX10Render PRIVATE ${LABX10_DEFINITIONS} LABX10_HARNESS=1)
+target_compile_options(LabX10Render PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+target_link_libraries(LabX10Render
+    PRIVATE
+        juce::juce_audio_utils
+        juce::juce_dsp
+        juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)

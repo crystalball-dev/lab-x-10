@@ -33,6 +33,7 @@ juce_add_plugin(LabX10
 
 set(LABX10_SOURCES
     Source/PluginProcessor.cpp
+    Source/PluginEditor.cpp
     Source/SpecimenLibrary.cpp
     Source/FactoryPresets.cpp)
 

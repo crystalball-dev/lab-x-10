@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 #include "FactoryPresets.h"
 
 using namespace labx10;
@@ -884,7 +885,7 @@ void LabX10AudioProcessor::setStateInformation (const void* data, int sizeInByte
 //==============================================================================
 juce::AudioProcessorEditor* LabX10AudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor (*this);
+    return new LabX10AudioProcessorEditor (*this);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

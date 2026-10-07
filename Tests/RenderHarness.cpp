@@ -20,6 +20,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 #include "FactoryPresets.h"
 
 namespace
@@ -611,6 +612,9 @@ int main (int argc, char* argv[])
     if (args.contains ("--png"))
     {
         std::unique_ptr<juce::AudioProcessorEditor> editor (proc->createEditor());
+        if (auto* labEditor = dynamic_cast<LabX10AudioProcessorEditor*> (editor.get()))
+            for (int i = 0; i < 12; ++i)
+                labEditor->refreshFromProcessor();
         const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
         const juce::File pngFile (option (args, "--png"));
         pngFile.deleteFile();

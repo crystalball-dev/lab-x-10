@@ -68,7 +68,7 @@ Then scan for plugins in FL Studio. LAB X-10 appears under Generators.
 ## Testing
 
 - `LabX10Render` renders presets offline to WAV with a simulated host tempo and reports level, largest sample jump, non-finite samples, latency and render speed.
-- `python Tests/run_tests.py` runs the whole battery: pitch at three sample rates, sub purity, phase lock, unison, filter slopes and resonance, accent, slide, drop, emitter harmonics, aliasing, latency, tempo sync, every specimen source, every preset, voice stealing, state round trip, preset switching, a 300-second randomised session, CPU load and pluginval.
+- `python Tests/run_tests.py` runs the whole battery: pitch at three sample rates, sub purity, phase lock, unison, filter slopes and resonance, accent, slide, drop, emitter harmonics, aliasing, latency, tempo sync, every specimen source, every preset, voice stealing, state round trip, preset switching, a 300-second randomised session, CPU load, pluginval and the RESONATOR's read positions.
 - `scripts/validate.ps1` runs [pluginval](https://github.com/Tracktion/pluginval).
 
 ## Licence

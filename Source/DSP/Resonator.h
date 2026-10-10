@@ -13,10 +13,35 @@ namespace labx10::dsp
     class Resonator
     {
     public:
+        // Comb buffer length: long enough for the lowest tuning (15 Hz) plus a margin.
+        static int bufferSize (float sr) noexcept { return (int) std::ceil (sr / 15.0f) + 8; }
+
+        // The two samples a fractional delay reads, `whole` and `whole + 1` samples behind `write`, and the
+        // weight of the older one. The delay is split into whole and fractional samples before wrapping, so
+        // the indices are exact integers. Wrapping the float position instead (pos = write - delay, then
+        // pos += size when negative) lets a position a hair below zero round up to exactly `size` and read
+        // one sample past the buffer; LAB X-3 and LAB X-19 found that bug in their delay lines, and 0.1.1
+        // had it here.
+        struct Taps
+        {
+            int i0, i1;
+            float frac;
+        };
+
+        static Taps taps (int write, float delay, int size) noexcept
+        {
+            const int whole = std::clamp ((int) delay, 0, size - 2);
+            const float frac = delay - (float) whole;
+            int i0 = write - whole;
+            if (i0 < 0)
+                i0 += size;
+            return { i0, i0 > 0 ? i0 - 1 : size - 1, frac };
+        }
+
         void prepare (float sr)
         {
             sampleRate = sr;
-            size = (int) std::ceil (sr / 15.0f) + 8;
+            size = bufferSize (sr);
             buffer.assign ((size_t) size, 0.0f);
             dampCoef = onePoleCoefHz (5000.0f, sr);
             reset();
@@ -46,7 +71,10 @@ namespace labx10::dsp
             }
             idle = false;
 
-            const float targetDelay = std::clamp (sampleRate / std::max (freqHz, 15.0f), 2.0f, (float) size - 4.0f);
+            float targetDelay = sampleRate / std::max (freqHz, 15.0f);
+            if (! std::isfinite (targetDelay))   // a NaN tuning must never reach the integer split
+                targetDelay = 2.0f;
+            targetDelay = std::clamp (targetDelay, 2.0f, (float) size - 4.0f);
             if (delay < 0.0f)
                 delay = targetDelay;
             const float dDelay = (targetDelay - delay) / (float) n;
@@ -74,13 +102,9 @@ namespace labx10::dsp
                 delay += dDelay;
                 const float in = 0.5f * (highL[i] + highR[i]);
 
-                float readPos = (float) write - delay;
-                if (readPos < 0.0f)
-                    readPos += (float) size;
-                const int r0 = (int) readPos;
-                const float fr = readPos - (float) r0;
-                const int r1 = (r0 + 1) % size;
-                const float delayed = buffer[(size_t) r0] + fr * (buffer[(size_t) r1] - buffer[(size_t) r0]);
+                const auto tap = taps (write, delay, size);
+                const float x0 = buffer[(size_t) tap.i0];
+                const float delayed = x0 + tap.frac * (buffer[(size_t) tap.i1] - x0);
 
                 damp += (delayed - damp) * dampCoef;
                 const float y = 2.0f * fastTanh (0.5f * (in + fb * damp));

@@ -136,6 +136,25 @@ voice sum ─> EMITTER [ oversampled: LR4 split ─> low band ─> mono, clean
   normalising. Shadow of Chornobyl's `psy_blackout_l.ogg` decodes with 238 samples up to +71 dBFS at its start;
   the catalogue uses the clean right channel, and the guard protects files loaded with LOAD FILE.
 
+## 0.1.2: RESONATOR read fix
+
+- The RESONATOR comb read its delayed sample at a float position, wrapped by adding the buffer length when it
+  went negative. When the delay sat a hair above a whole number of samples (a fractional part below about
+  1.2e-4 at 44.1 or 48 kHz) and the write index equalled that number, the position came out a tiny negative
+  value, adding the length rounded it up to exactly the length, and the comb read one sample past its buffer.
+  That is heap memory: usually a small value, sometimes a huge one or a NaN, which the comb would turn into a
+  click held at the REGULATOR ceiling or a fault that silences and resets every voice. No note at RATIO 1 hits
+  it, but RATIO, pitch bend, glide and DROP move the delay through such values: a simulation of 0.1.1 found
+  about one bad read per ten minutes of continuous movement, and a setting that stops on a bad value repeats it
+  about 15 times a second. LAB X-3 (NOOSPHERE) and LAB X-19 (ENSEMBLE) found the same bug in their delay lines
+  on 2026-10-09.
+- Fix: `Resonator::taps` splits the delay into whole and fractional samples before wrapping, so both read
+  indices are exact integers inside the buffer; a non-finite tuning falls back to the shortest delay. The
+  interpolation is unchanged, and every level and pitch in the test battery matches 0.1.1.
+- Test 23 (`LabX10Render --selftest-resonator`) checks the taps at seven sample rates, every write position and
+  delays just above whole numbers: 3,114,370 cases, none outside the buffer, where 0.1.1's arithmetic reads past
+  the end in 41,440 of them.
+
 ## Changes from the plan
 
 Decided during the build, all in the plan's spirit:
@@ -163,7 +182,8 @@ Decided during the build, all in the plan's spirit:
 
 ## Verification
 
-`python Tests/run_tests.py`: 62 checks over the plan's 22 tests, all passing (2026-10-07, 48 kHz unless noted).
+`python Tests/run_tests.py`: 80 checks over 23 tests (the plan's 22 plus the resonator read check), all passing
+(0.1.2, 2026-10-10, 48 kHz unless noted).
 
 | # | Test | Result |
 |---|---|---|
@@ -180,9 +200,10 @@ Decided during the build, all in the plan's spirit:
 | 11 | Latency | 77 samples reported, residual 0 samples at off, 2x, 4x |
 | 12 | COOLDOWN 1/4 at 128 BPM | 468.7 ms |
 | 13 | LFO 1/8 at 120 BPM | 4.00 Hz |
-| 14 | 20 specimen sources | 17 tables play E2 on a harmonic within 0.05 cents; 3 NOISY sources audible |
+| 14 | 37 specimen sources (20 pack, 17 library) | 33 tables play E2 on a harmonic within 0.05 cents; 4 NOISY sources audible |
 | 15 | 16 presets on a bass line | RMS -13.3 to -18.8 dBFS, peaks -2.4 dBFS or lower |
 | 16-18 | Stealing, round trip, preset switch in a tail | pass; tail only falls (-1.3 dB) |
 | 19 | 300 s randomised session | no faults, nothing rising in silence |
-| 20 | Monolith Wall, 6 voices × 7 unison, 4x | 31× real time |
+| 20 | Monolith Wall, 6 voices × 7 unison, 4x | 33× real time |
 | 22 | pluginval | strictness 5 and 10 SUCCESS |
+| 23 | RESONATOR read taps | 3,114,370 cases inside the buffer (0.1.1's arithmetic: 41,440 past the end) |

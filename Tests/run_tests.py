@@ -378,6 +378,14 @@ def main():
         record(20, "cpu: 6 voices x 7 unison at 4x faster than 15x real time", rt > 15.0,
                {"realtime_x": rt, "block_max_ms": st.get("block_max_ms")})
 
+    # 23. RESONATOR read taps stay inside the comb buffer at every sample rate, write position and delay,
+    #     including delays a hair above a whole number, where 0.1.1's float wrap read one sample past the end.
+    if want(23):
+        proc = subprocess.run([str(HARNESS), "--selftest-resonator"], capture_output=True, text=True, timeout=600)
+        stats = {k: (q if v.startswith('"') else v) for k, v, q in STAT.findall(proc.stdout)}
+        record(23, "resonator read taps inside the buffer", proc.returncode == 0 and stats.get("bad") == "0",
+               {k: stats.get(k) for k in ("checked", "bad", "old_past_end")})
+
     # 22. pluginval at strictness 5 and 10.
     if want(22) and not args.skip_pluginval:
         pluginval = shutil.which("pluginval") or r"F:\_DEV\tools\pluginval\pluginval.exe"

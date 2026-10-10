@@ -12,6 +12,9 @@
 //       the last 10 s are silent (all notes off, no events). Reports any level that rises
 //       during those silent stretches, non-finite samples and per-block processing time.
 //
+//   LabX10Render --selftest-resonator
+//       Checks the RESONATOR comb's read taps against its buffer bounds (see Resonator::taps).
+//
 // --bpm attaches a playing transport at that tempo, starting at beat 0.
 // Output is trimmed by the plugin's reported latency (unless --no-trim), so a note sent at
 // t seconds is heard at t seconds in the file.
@@ -330,6 +333,48 @@ namespace
 
         return (nonFinite == 0 && growthFx == 0) ? 0 : 1;
     }
+
+    // Every RESONATOR read tap stays inside the comb buffer at each sample rate, write position and delay,
+    // including delays a hair above a whole number, and the taps reproduce the requested delay. Also counts
+    // how often 0.1.1's float wrap would have read one sample past the end, so the cases are known to cover it.
+    int selftestResonator()
+    {
+        using labx10::dsp::Resonator;
+        long long checked = 0, bad = 0, oldPastEnd = 0;
+        const float fractions[] = { 0.0f, 1.0e-7f, 1.0e-6f, 1.0e-5f, 3.0e-5f, 6.0e-5f, 1.2e-4f, 2.4e-4f, 0.5f, 0.99999f };
+
+        for (float sr : { 22050.0f, 44100.0f, 48000.0f, 88200.0f, 96000.0f, 176400.0f, 192000.0f })
+        {
+            const int size = Resonator::bufferSize (sr);
+            for (int write = 0; write < size; ++write)
+            {
+                for (int whole : { 2, 3, write - 1, write, write + 1, size - 5, size - 4 })
+                {
+                    if (whole < 2 || whole > size - 4)
+                        continue;
+                    for (float f : fractions)
+                    {
+                        const float delay = (float) whole + f;
+                        const auto t = Resonator::taps (write, delay, size);
+                        const int behind = (write - t.i0 + size) % size;
+                        ++checked;
+                        if (t.i0 < 0 || t.i0 >= size || t.i1 < 0 || t.i1 >= size || (t.i0 - t.i1 + size) % size != 1
+                            || t.frac < 0.0f || t.frac >= 1.0f || std::abs ((float) behind + t.frac - delay) > 1.0e-3f)
+                            ++bad;
+
+                        float old = (float) write - delay;
+                        if (old < 0.0f)
+                            old += (float) size;
+                        if ((int) old >= size)
+                            ++oldPastEnd;
+                    }
+                }
+            }
+        }
+
+        std::cout << "resonator_taps checked=" << checked << " bad=" << bad << " old_past_end=" << oldPastEnd << std::endl;
+        return (bad == 0 && oldPastEnd > 0) ? 0 : 1;
+    }
 }
 
 int main (int argc, char* argv[])
@@ -347,6 +392,9 @@ int main (int argc, char* argv[])
             std::cout << i << "\t" << presets[(size_t) i].name << std::endl;
         return 0;
     }
+
+    if (args.contains ("--selftest-resonator"))
+        return selftestResonator();
 
     if (args.contains ("--list-specimens"))
     {
